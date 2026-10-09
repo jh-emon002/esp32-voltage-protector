@@ -4,7 +4,7 @@
 
 This project uses an **ESP32** to demonstrate voltage and overcurrent protection using a **Finite State Machine (FSM)**. Two potentiometers simulate voltage and current readings. A 16x2 LCD displays the readings and system status, LEDs indicate whether the load is enabled or tripped, and pushbuttons or a Wi-Fi web dashboard can change the protection settings.
 
-> **Safety note:** This is a low-voltage demonstration. The potentiometers do not measure real power-grid voltage or current, and the LEDs only indicate the intended load state. The prototype does not physically disconnect a mains-powered appliance. Do not connect it to AC mains.
+
 
 ### Hardware Connections Table
 
