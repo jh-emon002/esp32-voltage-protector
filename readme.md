@@ -20,13 +20,7 @@ This project uses an **ESP32** to demonstrate voltage and overcurrent protection
 | **DOWN Pushbutton** | GPIO 23 and GND |
 | **ESP32 Board** | Powered by USB for programming and operation |
 
-### Important Hardware Notes
 
-1. Connect both potentiometers between **3.3V and GND**. Do not apply 5V to the ESP32 analog inputs.
-2. The pushbuttons connect to **GND** because the firmware uses `INPUT_PULLUP`. A pressed button reads `LOW`.
-3. Use a **220-330 ohm resistor** in series with each LED and connect the LED return to GND.
-4. The LCD uses the fixed I2C address **`0x27`**. Make sure the I2C signal lines are at **3.3V logic levels**; use a level shifter if the LCD backpack pulls SDA/SCL up to 5V.
-5. All parts connected to the ESP32 must share a **common GND**.
 
 ### Instructions to Run the Project
 
