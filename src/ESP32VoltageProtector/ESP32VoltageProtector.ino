@@ -2,6 +2,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <math.h>
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 WebServer server(80);
@@ -380,6 +381,127 @@ String stateName() {
   return "INIT";
 }
 
+// ---------------- UART COMMANDS ----------------
+
+// Available in Serial Monitor at 115200 baud (line ending: Newline).
+// Commands: STATUS, SET VMAX 230, SET IMAX 5.5, RESET, HELP
+void printSerialStatus() {
+  Serial.println("\n--- PROTECTION STATUS ---");
+  Serial.print("Voltage: ");
+  Serial.print(voltage, 1);
+  Serial.println(" V (simulated)");
+  Serial.print("Current: ");
+  Serial.print(current, 2);
+  Serial.println(" A (simulated)");
+  Serial.print("Max Voltage: ");
+  Serial.print(maxVoltage, 1);
+  Serial.println(" V");
+  Serial.print("Max Current: ");
+  Serial.print(maxCurrent, 2);
+  Serial.println(" A");
+  Serial.print("State: ");
+  Serial.println(stateName());
+  Serial.print("Last Fault: ");
+  Serial.println(faultReason);
+  Serial.print("Load Indicator: ");
+  Serial.println(state == NORMAL ? "ON" : "OFF");
+  Serial.println("-------------------------");
+}
+
+void processSerialCommand(String command) {
+  command.trim();
+  command.toUpperCase();
+  if (command.length() == 0) return;
+
+  if (command == "HELP") {
+    Serial.println("Commands:");
+    Serial.println("  STATUS        - Show readings and limits");
+    Serial.println("  SET VMAX 230  - Set voltage limit (200-290 V)");
+    Serial.println("  SET IMAX 5.5  - Set current limit (1-14 A)");
+    Serial.println("  RESET         - Reset only when safe");
+    Serial.println("  HELP          - List commands");
+    return;
+  }
+
+  // Read latest potentiometer values before acting on commands.
+  readSensors();
+  updateFSM();
+
+  if (command == "STATUS") {
+    printSerialStatus();
+    return;
+  }
+
+  if (command == "RESET") {
+    if (resetProtection()) Serial.println("OK: Protection reset");
+    else Serial.println("ERROR: Wait for RESET READY and safe inputs");
+    updateLEDs();
+    return;
+  }
+
+  bool changeVoltage = command.startsWith("SET VMAX ");
+  bool changeCurrent = command.startsWith("SET IMAX ");
+  if (changeVoltage || changeCurrent) {
+    String valueText = command.substring(9);
+    valueText.trim();
+
+    float newLimit = 0;
+    char extra;
+    // Require one valid number; reject nonnumeric or trailing text.
+    if (sscanf(valueText.c_str(), "%f %c", &newLimit, &extra) != 1 ||
+        !isfinite(newLimit)) {
+      Serial.println("ERROR: Invalid value. Try SET VMAX 230 or SET IMAX 5.5");
+      return;
+    }
+
+    if (changeVoltage) {
+      if (newLimit < 200.0f || newLimit > 290.0f) {
+        Serial.println("ERROR: VMAX must be between 200 and 290 V");
+        return;
+      }
+      maxVoltage = newLimit;
+      Serial.print("OK: VMAX = ");
+      Serial.print(maxVoltage, 1);
+      Serial.println(" V");
+    } else {
+      if (newLimit < 1.0f || newLimit > 14.0f) {
+        Serial.println("ERROR: IMAX must be between 1 and 14 A");
+        return;
+      }
+      maxCurrent = newLimit;
+      Serial.print("OK: IMAX = ");
+      Serial.print(maxCurrent, 2);
+      Serial.println(" A");
+    }
+
+    // The new limit also applies to the LCD, buttons, and Wi-Fi API.
+    updateFSM();
+    updateLEDs();
+    return;
+  }
+
+  Serial.println("ERROR: Unknown command. Type HELP");
+}
+
+// Non-blocking input: never wait for serial text while protection runs.
+void handleSerialInput() {
+  static String line = "";
+  static bool tooLong = false;
+
+  while (Serial.available() > 0) {
+    char c = (char)Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (tooLong) Serial.println("ERROR: Command is too long");
+      else if (line.length() > 0) processSerialCommand(line);
+      line = "";
+      tooLong = false;
+    } else if (c >= 32 && c <= 126 && !tooLong) {
+      if (line.length() < 64) line += c;
+      else tooLong = true;
+    }
+  }
+}
+
 void handleStatus() {
   String json = "{";
 
@@ -473,6 +595,7 @@ void setup() {
   Serial.println(ssid);
   Serial.print("IP: ");
   Serial.println(WiFi.softAPIP());
+  Serial.println("UART ready (115200). Type HELP for commands.");
 }
 
 // ---------------- MAIN LOOP ----------------
@@ -489,6 +612,7 @@ void loop() {
 
   updateLEDs();
 
+  handleSerialInput();
   server.handleClient();
 
   if (millis() - lastLCD >= 250) {
