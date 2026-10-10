@@ -21,7 +21,7 @@ const char* password = "Protect2026";
 #define UP_BTN 19
 #define DOWN_BTN 23
 
-// Protection settings
+
 float maxVoltage = 250.0;
 float maxCurrent = 8.0;
 
@@ -47,7 +47,7 @@ unsigned long modeStart = 0;
 unsigned long lastUpPress = 0;
 unsigned long lastDownPress = 0;
 
-// ---------------- SENSOR ----------------
+
 
 void readSensors() {
   voltage = analogRead(VOLTAGE_PIN) * 300.0 / 4095.0;
@@ -73,7 +73,7 @@ String detectFault() {
   return "NONE";
 }
 
-// ---------------- FSM ----------------
+
 
 void updateFSM() {
   switch (state) {
@@ -129,7 +129,6 @@ bool resetProtection() {
   return false;
 }
 
-// ---------------- BUTTONS ----------------
 
 bool buttonPressed(int pin, bool &previous,
                    unsigned long &lastPress) {
@@ -182,7 +181,6 @@ void handleButtons() {
   }
 }
 
-// ---------------- LED ----------------
 
 void updateLEDs() {
   digitalWrite(GREEN_LED, state == NORMAL);
@@ -193,7 +191,6 @@ void updateLEDs() {
   digitalWrite(RED_LED, redOn);
 }
 
-// ---------------- LCD ----------------
 
 void lcdLine(int row, String text) {
   lcd.setCursor(0, row);
@@ -233,7 +230,6 @@ void updateLCD() {
   }
 }
 
-// ---------------- WEB PAGE ----------------
 
 const char webpage[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -372,7 +368,6 @@ updateData();
 </html>
 )rawliteral";
 
-// ---------------- WEB API ----------------
 
 String stateName() {
   if (state == NORMAL) return "NORMAL";
@@ -381,10 +376,7 @@ String stateName() {
   return "INIT";
 }
 
-// ---------------- UART COMMANDS ----------------
 
-// Available in Serial Monitor at 115200 baud (line ending: Newline).
-// Commands: STATUS, SET VMAX 230, SET IMAX 5.5, RESET, HELP
 void printSerialStatus() {
   Serial.println("\n--- PROTECTION STATUS ---");
   Serial.print("Voltage: ");
@@ -423,7 +415,7 @@ void processSerialCommand(String command) {
     return;
   }
 
-  // Read latest potentiometer values before acting on commands.
+
   readSensors();
   updateFSM();
 
@@ -447,7 +439,6 @@ void processSerialCommand(String command) {
 
     float newLimit = 0;
     char extra;
-    // Require one valid number; reject nonnumeric or trailing text.
     if (sscanf(valueText.c_str(), "%f %c", &newLimit, &extra) != 1 ||
         !isfinite(newLimit)) {
       Serial.println("ERROR: Invalid value. Try SET VMAX 230 or SET IMAX 5.5");
@@ -474,7 +465,6 @@ void processSerialCommand(String command) {
       Serial.println(" A");
     }
 
-    // The new limit also applies to the LCD, buttons, and Wi-Fi API.
     updateFSM();
     updateLEDs();
     return;
@@ -483,7 +473,6 @@ void processSerialCommand(String command) {
   Serial.println("ERROR: Unknown command. Type HELP");
 }
 
-// Non-blocking input: never wait for serial text while protection runs.
 void handleSerialInput() {
   static String line = "";
   static bool tooLong = false;
@@ -548,7 +537,6 @@ void handleReset() {
     server.send(409, "text/plain", "Not safe or not reset-ready");
 }
 
-// ---------------- SETUP ----------------
 
 void setup() {
   Serial.begin(115200);
@@ -598,7 +586,6 @@ void setup() {
   Serial.println("UART ready (115200). Type HELP for commands.");
 }
 
-// ---------------- MAIN LOOP ----------------
 
 void loop() {
   handleButtons();
